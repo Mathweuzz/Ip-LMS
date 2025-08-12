@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>{{ SITE_NAME }} — mini-AVA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">{{ SITE_NAME }}</div>
+    <div class="spacer"></div>
+    <a href="{{ url_for('index') }}">Início</a>
+  </nav>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <small>IpêLMS — Etapa 1</small>
+  </footer>
+</body>
+</html>

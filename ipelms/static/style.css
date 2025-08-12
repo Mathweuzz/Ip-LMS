@@ -1,0 +1,10 @@
+:root { --fg: #222; --bg: #fafafa; --brand: #1f6feb; --muted: #666; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color: var(--fg); background: var(--bg); }
+.nav { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; background:#fff; border-bottom:1px solid #eee; position:sticky; top:0; }
+.nav .brand { font-weight:700; color: var(--brand); }
+.nav a { color: var(--fg); text-decoration:none; padding:.25rem .5rem; border-radius:.5rem; }
+.nav a:hover { background:#f0f0f0; }
+.container { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+h1 { margin:.25rem 0 1rem; }
+.footer { color: var(--muted); border-top:1px solid #eee; padding:1rem; text-align:center; margin-top:2rem; }

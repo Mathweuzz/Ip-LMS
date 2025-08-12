@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Ambiente
+.venv/
+.env
+.env.*
+
+# Flask/arquivos locais
+instance/
+logs/
+uploads/
+data.db
+
+# Config sensível
+config/secret_key.txt

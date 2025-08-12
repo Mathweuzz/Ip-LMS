@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Bem-vindo ao {{ SITE_NAME }}</h1>
+  <p>App mínimo está rodando. Próximas etapas: DB, Auth, Cursos, Aulas, Avisos, Tarefas.</p>
+  <ul>
+    <li>Healthcheck: <code>/healthz</code></li>
+    <li>Rodar servidor: <code>flask --app ipelms.app run --debug</code></li>
+  </ul>
+{% endblock %}
