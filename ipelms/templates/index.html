@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="hero card">
-    <h1>Bem-vindo ao {{ SITE_NAME }}</h1>
-    <p class="muted">Mini-AVA em Flask + sqlite3. Você está na casca de UX; recursos virão nas próximas etapas.</p>
-    {% if current_user %}
-      <p><a class="btn" href="{{ url_for('dashboard') }}">Ir para o Dashboard →</a></p>
-    {% else %}
-      <div class="row gap">
-        <a class="btn" href="{{ url_for('auth.login') }}">Entrar</a>
-        <a class="btn outline" href="{{ url_for('auth.register_form') }}">Criar Conta</a>
-      </div>
-    {% endif %}
+  <div class="card">
+    <h2>Bem-vindo ao {{ SITE_NAME }}</h2>
+    <p class="muted">Um mini-AVA (tipo “Aprender3”) minimalista feito com Flask + SQLite.</p>
+    <div class="row gap" style="margin-top: .8rem;">
+      <a class="btn" href="{{ url_for('courses.list_courses') }}">Explorar cursos</a>
+      {% if current_user %}
+        <a class="btn outline" href="{{ url_for('dashboard') }}">Ir para o meu dashboard</a>
+      {% else %}
+        <a class="btn outline" href="{{ url_for('auth.register_form') }}">Criar conta</a>
+      {% endif %}
+    </div>
   </div>
 {% endblock %}

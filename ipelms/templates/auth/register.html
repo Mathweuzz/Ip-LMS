@@ -1,18 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Criar conta</h2>
-<form method="post" action="{{ url_for('auth.register_post') }}" class="form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <label>Nome<br>
-    <input type="text" name="name" required minlength="2">
-  </label>
-  <label>E-mail<br>
-    <input type="email" name="email" required>
-  </label>
-  <label>Senha<br>
-    <input type="password" name="password" required minlength="6">
-  </label>
-  <button type="submit">Cadastrar</button>
-</form>
-<p>Já tem conta? <a href="{{ url_for('auth.login') }}">Entrar</a>.</p>
+  <div class="card" style="max-width: 520px; margin: 0 auto;">
+    <h2>Criar conta</h2>
+    <form class="form" method="post" action="{{ url_for('auth.register_post') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Nome
+        <input type="text" name="name" required minlength="2" autocomplete="name">
+      </label>
+      <label>E-mail
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>Senha
+        <input type="password" name="password" required minlength="6" autocomplete="new-password">
+      </label>
+      <div class="row gap">
+        <button type="submit" class="btn">Criar</button>
+        <a class="btn outline" href="{{ url_for('auth.login') }}">Já tenho conta</a>
+      </div>
+    </form>
+  </div>
 {% endblock %}

@@ -1,42 +1,52 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}{{ SITE_NAME }} — mini-AVA{% endblock %}</title>
+  <title>{{ SITE_NAME }}{% block title %}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <nav class="nav">
-    <div class="brand"><a href="{{ url_for('index') }}">{{ SITE_NAME }}</a></div>
-    <div class="nav-links">
-      <a href="{{ url_for('index') }}" class="{{ 'active' if (request.endpoint=='index') else '' }}">Início</a>
-      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if (request.endpoint=='dashboard') else '' }}">Dashboard</a>
-      <!-- Próximos passos ativarão estes:
-      <span class="muted">Cursos</span>
-      <span class="muted">Aulas</span>
-      <span class="muted">Avisos</span>
-      <span class="muted">Tarefas</span>
-      -->
-    </div>
-    <div class="spacer"></div>
-    <div class="auth-area">
-      {% if current_user %}
-        <span class="muted">Olá, {{ current_user['name'] }}!</span>
-        <a href="{{ url_for('auth.logout') }}">Sair</a>
-      {% else %}
-        <a href="{{ url_for('auth.login') }}" class="{{ 'active' if (request.endpoint=='auth.login') else '' }}">Entrar</a>
-        <a href="{{ url_for('auth.register_form') }}" class="{{ 'active' if (request.endpoint=='auth.register_form') else '' }}">Cadastrar</a>
-      {% endif %}
-    </div>
-  </nav>
+  <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
 
-  <main class="container">
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% if msgs %}
+  <header class="navbar">
+    <div class="container row">
+      <a class="brand" href="{{ url_for('index') }}">🌳 {{ SITE_NAME }}</a>
+      <nav class="nav-links">
+        <a href="{{ url_for('courses.list_courses') }}"
+           class="{{ 'active' if request.path.startswith('/courses') else '' }}">Cursos</a>
+        {% if current_user %}
+          <a href="{{ url_for('dashboard') }}"
+             class="{{ 'active' if request.path.startswith('/dashboard') else '' }}">Dashboard</a>
+          <a href="{{ url_for('courses.new_course') }}">Novo curso</a>
+        {% endif %}
+      </nav>
+      <div class="nav-user">
+        {% if current_user %}
+          <span class="user-chip" title="{{ current_user['email'] }}">
+            {{ current_user['name'] }}
+            {% if current_user['role'] and current_user['role'] != 'student' %}
+              <span class="badge">{{ current_user['role'] }}</span>
+            {% endif %}
+          </span>
+          <a class="btn outline small" href="{{ url_for('auth.logout') }}">Sair</a>
+        {% else %}
+          <a class="btn small" href="{{ url_for('auth.login') }}">Entrar</a>
+          <a class="btn outline small" href="{{ url_for('auth.register_form') }}">Criar conta</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main id="conteudo" class="container">
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% if messages %}
         <div class="flashes">
-          {% for cat, msg in msgs %}
-            <div class="flash flash-{{ cat }}">{{ msg }}</div>
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+              <strong>{{ category|capitalize }}</strong> — {{ message }}
+            </div>
           {% endfor %}
         </div>
       {% endif %}
@@ -46,7 +56,9 @@
   </main>
 
   <footer class="footer">
-    <small>IpêLMS — Etapa 5 (UX)</small>
+    <div class="container">
+      <p class="muted">© {{ SITE_NAME }} — feito com Flask & Jinja.</p>
+    </div>
   </footer>
 </body>
 </html>
