@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Dashboard</h2>
+  <div class="card">
+    <p>Olá, {{ current_user['name'] }}.</p>
+    <p class="muted">Aqui você verá seus cursos, avisos e tarefas. (Será implementado nas etapas 6–9.)</p>
+    <ul>
+      <li><strong>Meus cursos:</strong> (vazio no momento)</li>
+      <li><strong>Próximas tarefas:</strong> (vazio no momento)</li>
+    </ul>
+  </div>
+{% endblock %}

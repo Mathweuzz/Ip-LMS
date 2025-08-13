@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>404 — Página não encontrada</h2>
+    <p class="muted">O recurso solicitado não existe.</p>
+    <p><a class="btn" href="{{ url_for('index') }}">Voltar ao início</a></p>
+  </div>
+{% endblock %}

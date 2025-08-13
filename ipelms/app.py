@@ -8,32 +8,29 @@ from flask import Flask, render_template, jsonify
 
 from . import db as db_module
 from .auth import bp as auth_bp
+from .security import login_required
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 def _load_json_config(config_path: Path) -> dict:
-    default = {"site_name": "IpêMLS", "environment": "development"}
+    default = {"site_name": "IpêLMS", "environment": "development"}
     try:
-        data = json.load(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return default
-        # sane defaults
         data.setdefault("site_name", "IpêLMS")
         data.setdefault("environment", "development")
         return data
     except Exception:
         return default
-    
+
 def _load_secret_key(secret_path: Path) -> str:
     try:
         key = secret_path.read_text(encoding="utf-8").strip()
-        # validação
-        if len(key) < 32:
-            return "dev"
-        return key
+        return key if len(key) >= 32 else "dev"
     except Exception:
         return "dev"
-    
+
 def _setup_dirs(root: Path) -> dict[str, Path]:
     paths = {
         "LOG_DIR": root / "logs",
@@ -49,7 +46,6 @@ def _setup_dirs(root: Path) -> dict[str, Path]:
     return paths
 
 def _setup_logging(app: Flask, log_file: Path) -> None:
-    # evitar handlets duplucados em realod do flask
     if any(isinstance(h, RotatingFileHandler) for h in app.logger.handlers):
         return
     app.logger.setLevel(logging.INFO)
@@ -62,7 +58,6 @@ def _setup_logging(app: Flask, log_file: Path) -> None:
     )
     handler.setFormatter(fmt)
     app.logger.addHandler(handler)
-
 
 def create_app():
     root = Path(__file__).resolve().parent.parent
@@ -89,17 +84,18 @@ def create_app():
         app.config["ENVIRONMENT"], app.config["UPLOAD_FOLDER"], paths["LOG_DIR"], VERSION
     )
 
-    # DB + CLI
     db_module.init_app(app)
 
-    # ===== REGISTRO DOS BLUEPRINTS =====
     app.register_blueprint(auth_bp)
 
-    # Rotas mínimas
     @app.get("/")
     def index():
-        app.logger.info("GET / (index) acessado")
         return render_template("index.html")
+
+    @app.get("/dashboard")
+    @login_required
+    def dashboard():
+        return render_template("dashboard.html")
 
     @app.get("/healthz")
     def healthz():
@@ -110,6 +106,22 @@ def create_app():
             environment=app.config.get("ENVIRONMENT"),
             site_name=app.config.get("SITE_NAME"),
         )
+
+    @app.errorhandler(404)
+    def not_found(err):
+        return render_template("errors/404.html", err=err), 404
+
+    @app.errorhandler(400)
+    def bad_request(err):
+        return render_template("errors/400.html", err=err), 400
+
+    @app.errorhandler(413)  
+    def too_large(err):
+        return render_template("errors/413.html", err=err), 413
+
+    @app.errorhandler(500)
+    def server_error(err):
+        return render_template("errors/500.html", err=err), 500
 
     return app
 

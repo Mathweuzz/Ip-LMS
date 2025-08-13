@@ -2,21 +2,33 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>{{ SITE_NAME }} — mini-AVA</title>
+  <title>{% block title %}{{ SITE_NAME }} — mini-AVA{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <nav class="nav">
     <div class="brand"><a href="{{ url_for('index') }}">{{ SITE_NAME }}</a></div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}" class="{{ 'active' if (request.endpoint=='index') else '' }}">Início</a>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if (request.endpoint=='dashboard') else '' }}">Dashboard</a>
+      <!-- Próximos passos ativarão estes:
+      <span class="muted">Cursos</span>
+      <span class="muted">Aulas</span>
+      <span class="muted">Avisos</span>
+      <span class="muted">Tarefas</span>
+      -->
+    </div>
     <div class="spacer"></div>
-    {% if current_user %}
-      <span class="muted">Olá, {{ current_user['name'] }}!</span>
-      <a href="{{ url_for('auth.logout') }}">Sair</a>
-    {% else %}
-      <a href="{{ url_for('auth.login') }}">Entrar</a>
-      <a href="{{ url_for('auth.register_form') }}">Cadastrar</a>
-    {% endif %}
+    <div class="auth-area">
+      {% if current_user %}
+        <span class="muted">Olá, {{ current_user['name'] }}!</span>
+        <a href="{{ url_for('auth.logout') }}">Sair</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="{{ 'active' if (request.endpoint=='auth.login') else '' }}">Entrar</a>
+        <a href="{{ url_for('auth.register_form') }}" class="{{ 'active' if (request.endpoint=='auth.register_form') else '' }}">Cadastrar</a>
+      {% endif %}
+    </div>
   </nav>
 
   <main class="container">
@@ -29,11 +41,12 @@
         </div>
       {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 
   <footer class="footer">
-    <small>IpêLMS — Etapa 4 (Auth + CSRF)</small>
+    <small>IpêLMS — Etapa 5 (UX)</small>
   </footer>
 </body>
 </html>

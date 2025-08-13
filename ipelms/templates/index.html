@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Bem-vindo ao {{ SITE_NAME }}</h1>
-  <p>App mínimo está rodando. Próximas etapas: DB, Auth, Cursos, Aulas, Avisos, Tarefas.</p>
-  <ul>
-    <li>Healthcheck: <code>/healthz</code></li>
-    <li>Rodar servidor: <code>flask --app ipelms.app run --debug</code></li>
-  </ul>
+  <div class="hero card">
+    <h1>Bem-vindo ao {{ SITE_NAME }}</h1>
+    <p class="muted">Mini-AVA em Flask + sqlite3. Você está na casca de UX; recursos virão nas próximas etapas.</p>
+    {% if current_user %}
+      <p><a class="btn" href="{{ url_for('dashboard') }}">Ir para o Dashboard →</a></p>
+    {% else %}
+      <div class="row gap">
+        <a class="btn" href="{{ url_for('auth.login') }}">Entrar</a>
+        <a class="btn outline" href="{{ url_for('auth.register_form') }}">Criar Conta</a>
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}

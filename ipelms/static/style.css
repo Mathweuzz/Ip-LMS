@@ -1,24 +1,78 @@
-:root { --fg: #222; --bg: #fafafa; --brand: #1f6feb; --muted: #666; }
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color: var(--fg); background: var(--bg); }
-.nav { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; background:#fff; border-bottom:1px solid #eee; position:sticky; top:0; }
-.nav .brand { font-weight:700; color: var(--brand); }
-.nav a { color: var(--fg); text-decoration:none; padding:.25rem .5rem; border-radius:.5rem; }
-.nav a:hover { background:#f0f0f0; }
-.container { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
-h1 { margin:.25rem 0 1rem; }
-.footer { color: var(--muted); border-top:1px solid #eee; padding:1rem; text-align:center; margin-top:2rem; }
+:root {
+  --fg: #222;
+  --bg: #fafafa;
+  --card: #ffffff;
+  --brand: #1f6feb;
+  --muted: #666;
+  --border: #e9e9e9;
+}
 
-/* ... (conteúdo existente acima) ... */
-.form { display:grid; gap:.75rem; max-width: 420px; }
-.form input { width:100%; padding:.5rem .6rem; border:1px solid #ddd; border-radius:.5rem; }
-.form button { padding:.5rem .9rem; border:0; background:var(--brand); color:#fff; border-radius:.5rem; cursor:pointer; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin:0; color: var(--fg); background: var(--bg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  line-height: 1.4;
+}
+
+/* NAVBAR */
+.nav {
+  display:flex; align-items:center; gap:.75rem;
+  padding:.75rem 1rem; background:#fff; border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index: 10;
+}
+.nav .brand a { font-weight:700; color: var(--brand); text-decoration:none; }
+.nav .nav-links { display:flex; gap:.5rem; margin-left:1rem; }
+.nav a { color: var(--fg); text-decoration:none; padding:.35rem .6rem; border-radius:.5rem; }
+.nav a:hover { background:#f3f3f3; }
+.nav a.active { background:#e7f0ff; color:#0b3d91; }
+.nav .spacer { flex:1; }
+.muted { color: var(--muted); }
+
+/* LAYOUT */
+.container { max-width: 960px; margin: 1.2rem auto; padding: 0 1rem; }
+.footer { color: var(--muted); border-top:1px solid var(--border); padding:1rem; text-align:center; margin-top:2rem; }
+
+/* COMPONENTES */
+.card {
+  background: var(--card); border:1px solid var(--border); border-radius:.75rem;
+  padding:1rem 1.1rem; box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.hero h1 { margin:.25rem 0 0.5rem; }
+
+.btn {
+  display:inline-block; background: var(--brand); color:#fff; text-decoration:none;
+  padding:.55rem .9rem; border-radius:.55rem; border:1px solid transparent;
+}
+.btn:hover { filter: brightness(0.96); }
+.btn.outline {
+  background: transparent; color: var(--brand); border-color: var(--brand);
+}
+.row.gap { display:flex; gap:.75rem; flex-wrap:wrap; }
+
+/* FORM */
+.form { display:grid; gap:.75rem; max-width: 480px; }
+.form input, .form textarea, .form select {
+  width:100%; padding:.55rem .65rem; border:1px solid var(--border); border-radius:.55rem; background:#fff;
+}
+.form textarea { min-height: 120px; resize: vertical; }
+.form button { padding:.55rem .9rem; border:0; background:var(--brand); color:#fff; border-radius:.55rem; cursor:pointer; }
 .form button:hover { filter:brightness(0.95); }
 
+/* FLASHES */
 .flashes { display:grid; gap:.5rem; margin: .5rem 0 1rem; }
-.flash { padding:.5rem .75rem; border-radius:.5rem; border:1px solid #eee; background:#fff; }
+.flash { padding:.55rem .75rem; border-radius:.55rem; border:1px solid var(--border); background:#fff; }
 .flash-success { border-color:#c6f3d4; background:#e8fff0; }
 .flash-info    { border-color:#d2ebff; background:#f0f8ff; }
 .flash-warning { border-color:#ffe9b3; background:#fff7df; }
 .flash-danger  { border-color:#ffd2d2; background:#fff0f0; }
-.muted { color: var(--muted); }
+
+/* TABELA (para uso futuro) */
+.table { width:100%; border-collapse: collapse; }
+.table th, .table td { border-top:1px solid var(--border); padding:.5rem .6rem; text-align:left; }
+.table th { background:#f7f7f7; }
+
+/* RESPONSIVIDADE */
+@media (max-width: 600px) {
+  .nav .nav-links { display:none; }
+}
