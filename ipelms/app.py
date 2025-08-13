@@ -16,8 +16,9 @@ from .lessons import bp as lessons_bp
 from .notices import bp as notices_bp
 from .assignments import bp as assignments_bp
 from .security import login_required
+from .migrate import register_cli as register_migrate_cli  # <<< NOVO
 
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -54,7 +55,6 @@ def _setup_dirs(root: Path) -> dict[str, Path]:
     return paths
 
 def _setup_logging(app: Flask, app_log_file: Path) -> None:
-    # Evita duplicar handlers
     if any(isinstance(h, RotatingFileHandler) for h in app.logger.handlers):
         return
     app.logger.setLevel(logging.INFO)
@@ -70,10 +70,9 @@ def _setup_access_logging(access_log_file: Path) -> logging.Logger:
         return logger
     logger.setLevel(logging.INFO)
     handler = RotatingFileHandler(access_log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
-    # Para access.log, queremos apenas a mensagem crua (linha já formatada por nós)
     handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(handler)
-    logger.propagate = False  # não subir para root
+    logger.propagate = False
     return logger
 
 def create_app():
@@ -88,20 +87,18 @@ def create_app():
 
     app.config.update(
         SECRET_KEY=secret_key,
-        MAX_CONTENT_LENGTH=10 * 1024 * 1024,  # 10 MB
+        MAX_CONTENT_LENGTH=10 * 1024 * 1024,
         UPLOAD_FOLDER=str(paths["UPLOADS_DIR"]),
         ENVIRONMENT=cfg.get("environment", "development"),
         SITE_NAME=cfg.get("site_name", "IpêLMS"),
         DATABASE_PATH=str((root / "data.db").resolve()),
-        # Cookies de sessão reforçados:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=is_prod,  # em produção, exigir HTTPS
+        SESSION_COOKIE_SECURE=is_prod,
     )
 
     app.jinja_env.globals["SITE_NAME"] = app.config["SITE_NAME"]
 
-    # Logging de app e de acesso
     _setup_logging(app, paths["APP_LOG"])
     access_logger = _setup_access_logging(paths["ACCESS_LOG"])
 
@@ -112,6 +109,7 @@ def create_app():
 
     # DB + CLI
     db_module.init_app(app)
+    register_migrate_cli(app)  # <<< registra comandos de migração
 
     # Blueprints
     app.register_blueprint(auth_bp)
@@ -120,77 +118,52 @@ def create_app():
     app.register_blueprint(notices_bp)
     app.register_blueprint(assignments_bp)
 
-    # ---------- Ciclo de request: req_id + tempo + headers de segurança ----------
+    # ---------- ciclo de request: headers + req_id + access log ----------
+    import time, secrets
+    from datetime import datetime, timezone
 
     @app.before_request
     def _start_timer_and_reqid():
         g._start_ts = time.perf_counter()
-        g.req_id = secrets.token_hex(8)  # 16 hex chars
-        # Pode ser útil ter IP resolvido cedo
+        g.req_id = secrets.token_hex(8)
         g.client_ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "-"
 
     @app.after_request
     def _security_headers_and_access_log(resp):
-        # ---- Security headers ----
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["X-Frame-Options"] = "DENY"
         resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         resp.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "img-src 'self' data:; "
-            "style-src 'self'; "
-            "object-src 'none'; "
-            "base-uri 'self'; "
-            "frame-ancestors 'none'"
+            "default-src 'self'; img-src 'self' data:; style-src 'self'; "
+            "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         )
         if app.config["ENVIRONMENT"] == "production":
             resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 
-        # ---- X-Request-ID ----
         req_id = getattr(g, "req_id", None)
-        if req_id:
-            resp.headers["X-Request-ID"] = req_id
+        if req_id: resp.headers["X-Request-ID"] = req_id
 
-        # ---- Access log ----
         try:
-            # Tempo
             start_ts = getattr(g, "_start_ts", None)
             rt_ms = (time.perf_counter() - start_ts) * 1000 if start_ts else -1
-
-            # Caminho + query
-            if request.query_string:
-                path_qs = f"{request.path}?{request.query_string.decode(errors='ignore')}"
-            else:
-                path_qs = request.path
-
-            # Protocolo e bytes
+            path_qs = f"{request.path}?{request.query_string.decode(errors='ignore')}" if request.query_string else request.path
             proto = request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")
-            length = resp.calculate_content_length()
-            length = length if length is not None else resp.headers.get("Content-Length", "-")
-
-            # Identidade
-            user_id = getattr(g, "user", None)["id"] if getattr(g, "user", None) else "-"
+            length = resp.calculate_content_length() or resp.headers.get("Content-Length", "-")
+            user_id = g.user["id"] if getattr(g, "user", None) else "-"
             referer = request.headers.get("Referer", "-")
             ua = request.headers.get("User-Agent", "-")
             ip = getattr(g, "client_ip", request.remote_addr) or "-"
-
-            # Data no estilo CLF (UTC)
             now = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
-
             line = (f'{ip} - {user_id} [{now}] "{request.method} {path_qs} {proto}" '
                     f'{resp.status_code} {length} "{referer}" "{ua}" rt={rt_ms:.2f}ms req_id={req_id or "-"}')
-
             logging.getLogger("ipelms.access").info(line)
         except Exception as e:
-            # Não quebrar a resposta por causa de logging
             app.logger.warning("Falha ao logar acesso: %s", e)
-
         return resp
 
     @app.teardown_request
     def _log_teardown(exc):
-        # Se houve exceção não tratada, registre junto do req_id
         if exc is not None:
             app.logger.exception("Unhandled error req_id=%s path=%s", getattr(g, "req_id", "-"), request.path)
 
@@ -229,28 +202,22 @@ def create_app():
         )
 
     @app.errorhandler(403)
-    def forbidden(err):
-        return render_template("errors/403.html", err=err), 403
+    def forbidden(err): return render_template("errors/403.html", err=err), 403
 
     @app.errorhandler(404)
-    def not_found(err):
-        return render_template("errors/404.html", err=err), 404
+    def not_found(err): return render_template("errors/404.html", err=err), 404
 
     @app.errorhandler(400)
-    def bad_request(err):
-        return render_template("errors/400.html", err=err), 400
+    def bad_request(err): return render_template("errors/400.html", err=err), 400
 
     @app.errorhandler(413)
-    def too_large(err):
-        return render_template("errors/413.html", err=err), 413
+    def too_large(err): return render_template("errors/413.html", err=err), 413
 
     @app.errorhandler(429)
-    def too_many(err):
-        return render_template("errors/429.html", err=err), 429
+    def too_many(err): return render_template("errors/429.html", err=err), 429
 
     @app.errorhandler(500)
-    def server_error(err):
-        return render_template("errors/500.html", err=err), 500
+    def server_error(err): return render_template("errors/500.html", err=err), 500
 
     return app
 
