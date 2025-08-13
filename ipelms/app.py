@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
+import time
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from flask import Flask, render_template, jsonify, g, request
@@ -14,7 +17,7 @@ from .notices import bp as notices_bp
 from .assignments import bp as assignments_bp
 from .security import login_required
 
-VERSION = "0.10.0"
+VERSION = "0.11.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -43,25 +46,35 @@ def _setup_dirs(root: Path) -> dict[str, Path]:
         "CONFIG_JSON": root / "config" / "config.json",
         "SECRET_FILE": root / "config" / "secret_key.txt",
         "APP_LOG": root / "logs" / "app.log",
+        "ACCESS_LOG": root / "logs" / "access.log",
     }
     paths["LOG_DIR"].mkdir(parents=True, exist_ok=True)
     paths["UPLOADS_DIR"].mkdir(parents=True, exist_ok=True)
     paths["INSTANCE_DIR"].mkdir(parents=True, exist_ok=True)
     return paths
 
-def _setup_logging(app: Flask, log_file: Path) -> None:
+def _setup_logging(app: Flask, app_log_file: Path) -> None:
+    # Evita duplicar handlers
     if any(isinstance(h, RotatingFileHandler) for h in app.logger.handlers):
         return
     app.logger.setLevel(logging.INFO)
-    handler = RotatingFileHandler(
-        log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
-    )
-    fmt = logging.Formatter(
-        fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    handler = RotatingFileHandler(app_log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    fmt = logging.Formatter(fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S")
     handler.setFormatter(fmt)
     app.logger.addHandler(handler)
+
+def _setup_access_logging(access_log_file: Path) -> logging.Logger:
+    logger = logging.getLogger("ipelms.access")
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.INFO)
+    handler = RotatingFileHandler(access_log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    # Para access.log, queremos apenas a mensagem crua (linha já formatada por nós)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+    logger.propagate = False  # não subir para root
+    return logger
 
 def create_app():
     root = Path(__file__).resolve().parent.parent
@@ -88,7 +101,10 @@ def create_app():
 
     app.jinja_env.globals["SITE_NAME"] = app.config["SITE_NAME"]
 
+    # Logging de app e de acesso
     _setup_logging(app, paths["APP_LOG"])
+    access_logger = _setup_access_logging(paths["ACCESS_LOG"])
+
     app.logger.info(
         "IpêLMS iniciado | env=%s | uploads=%s | logs=%s | version=%s",
         app.config["ENVIRONMENT"], app.config["UPLOAD_FOLDER"], paths["LOG_DIR"], VERSION
@@ -104,14 +120,22 @@ def create_app():
     app.register_blueprint(notices_bp)
     app.register_blueprint(assignments_bp)
 
-    # ---------- Security headers ----------
+    # ---------- Ciclo de request: req_id + tempo + headers de segurança ----------
+
+    @app.before_request
+    def _start_timer_and_reqid():
+        g._start_ts = time.perf_counter()
+        g.req_id = secrets.token_hex(8)  # 16 hex chars
+        # Pode ser útil ter IP resolvido cedo
+        g.client_ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "-"
+
     @app.after_request
-    def set_security_headers(resp):
+    def _security_headers_and_access_log(resp):
+        # ---- Security headers ----
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["X-Frame-Options"] = "DENY"
         resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        # CSP enxuta (ajuste se precisar carregar recursos externos)
         resp.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "img-src 'self' data:; "
@@ -122,7 +146,53 @@ def create_app():
         )
         if app.config["ENVIRONMENT"] == "production":
             resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+
+        # ---- X-Request-ID ----
+        req_id = getattr(g, "req_id", None)
+        if req_id:
+            resp.headers["X-Request-ID"] = req_id
+
+        # ---- Access log ----
+        try:
+            # Tempo
+            start_ts = getattr(g, "_start_ts", None)
+            rt_ms = (time.perf_counter() - start_ts) * 1000 if start_ts else -1
+
+            # Caminho + query
+            if request.query_string:
+                path_qs = f"{request.path}?{request.query_string.decode(errors='ignore')}"
+            else:
+                path_qs = request.path
+
+            # Protocolo e bytes
+            proto = request.environ.get("SERVER_PROTOCOL", "HTTP/1.1")
+            length = resp.calculate_content_length()
+            length = length if length is not None else resp.headers.get("Content-Length", "-")
+
+            # Identidade
+            user_id = getattr(g, "user", None)["id"] if getattr(g, "user", None) else "-"
+            referer = request.headers.get("Referer", "-")
+            ua = request.headers.get("User-Agent", "-")
+            ip = getattr(g, "client_ip", request.remote_addr) or "-"
+
+            # Data no estilo CLF (UTC)
+            now = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
+
+            line = (f'{ip} - {user_id} [{now}] "{request.method} {path_qs} {proto}" '
+                    f'{resp.status_code} {length} "{referer}" "{ua}" rt={rt_ms:.2f}ms req_id={req_id or "-"}')
+
+            logging.getLogger("ipelms.access").info(line)
+        except Exception as e:
+            # Não quebrar a resposta por causa de logging
+            app.logger.warning("Falha ao logar acesso: %s", e)
+
         return resp
+
+    @app.teardown_request
+    def _log_teardown(exc):
+        # Se houve exceção não tratada, registre junto do req_id
+        if exc is not None:
+            app.logger.exception("Unhandled error req_id=%s path=%s", getattr(g, "req_id", "-"), request.path)
 
     # ----- Rotas principais -----
     @app.get("/")
