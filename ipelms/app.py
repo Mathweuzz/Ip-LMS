@@ -6,7 +6,9 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from flask import Flask, render_template, jsonify
 
-VERSION = "0.2.0"
+from . import db as db_module
+
+VERSION = "0.3.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêMLS", "environment": "development"}
@@ -76,6 +78,7 @@ def create_app():
         UPLOAD_FOLDER=str(paths["UPLOADS_DIR"]),
         ENVIRONMENT=cfg.get("environment", "development"),
         SITE_NAME=cfg.get("site_name", "IpêLMS"),
+        DATABASE_PATH=str((root / "data.db").resolve()),
     )
 
     app.jinja_env.globals["SITE_NAME"] = app.config["SITE_NAME"]
@@ -86,6 +89,8 @@ def create_app():
         "IpêLMS iniciado | env=%s | uploads=%s | logs=%s | version=%s",
         app.config["ENVIRONMENT"], app.config["UPLOAD_FOLDER"], paths["LOG_DIR"], VERSION
     )
+
+    db_module.init_app(app)
 
     @app.get("/")
     def index():
