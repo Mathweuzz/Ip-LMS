@@ -14,8 +14,10 @@ from .security import login_required, csrf_protect
 bp = Blueprint("assignments", __name__, url_prefix="/assignments")
 
 ALLOWED_EXT = {"pdf", "txt", "md", "png", "jpg", "jpeg", "gif", "zip", "pptx", "docx", "csv"}
+MAX_TITLE = 200
+MAX_DESC = 10_000
+MAX_TEXT = 20_000
 
-# ---------- Helpers ----------
 def _get_course(course_id: int) -> Optional[dict]:
     return query("SELECT * FROM courses WHERE id = ?", (course_id,), one=True)
 
@@ -43,7 +45,6 @@ def _is_under_uploads(path: Path) -> bool:
     except Exception:
         return False
 
-# ---------- Rotas ----------
 @bp.get("/new/<int:course_id>")
 @login_required
 def new(course_id: int):
@@ -68,8 +69,12 @@ def create(course_id: int):
 
     title = (request.form.get("title") or "").strip()
     description = (request.form.get("description") or "").strip()
-    if len(title) < 3:
-        flash("Título muito curto.", "danger")
+
+    if len(title) < 3 or len(title) > MAX_TITLE:
+        flash("Título inválido (3–200 chars).", "danger")
+        return redirect(url_for("assignments.new", course_id=course_id))
+    if len(description) > MAX_DESC:
+        flash("Descrição muito longa (máx 10k).", "danger")
         return redirect(url_for("assignments.new", course_id=course_id))
 
     assignment_id = execute(
@@ -99,7 +104,6 @@ def detail(assignment_id: int):
         flash("Você não tem acesso a esta tarefa.", "danger")
         return redirect(url_for("courses.detail", course_id=a["course_id"]))
 
-    # Envio do usuário (se aluno) e lista de envios (se instrutor)
     my_submission = None
     all_submissions = None
 
@@ -137,9 +141,11 @@ def submit(assignment_id: int):
         return redirect(url_for("assignments.detail", assignment_id=assignment_id))
 
     text = (request.form.get("text") or "").strip()
-    file = request.files.get("attachment")
+    if len(text) > MAX_TEXT:
+        flash("Texto de envio muito longo (máx 20k).", "danger")
+        return redirect(url_for("assignments.detail", assignment_id=assignment_id))
 
-    # Se houver arquivo, validar e salvar
+    file = request.files.get("attachment")
     rel_path = None
     if file and file.filename:
         filename = secure_filename(file.filename)
@@ -152,11 +158,9 @@ def submit(assignment_id: int):
         file.save(dest_path)
         rel_path = dest_path.relative_to(Path(current_app.config["UPLOAD_FOLDER"]))
 
-    # Se já existe submissão, atualiza; senão cria
     existing = query("SELECT id, attachment_path FROM submissions WHERE assignment_id=? AND student_id=?",
                      (assignment_id, user_id), one=True)
     if existing:
-        # remover anexo anterior se trocou
         if rel_path and existing["attachment_path"]:
             old = Path(current_app.config["UPLOAD_FOLDER"]) / existing["attachment_path"]
             if old.exists() and _is_under_uploads(old):
@@ -206,16 +210,18 @@ def grade(assignment_id: int, student_id: int):
         flash("Apenas instrutores podem lançar notas.", "danger")
         return redirect(url_for("assignments.detail", assignment_id=assignment_id))
 
-    # Conferir que existe submissão
     sub = query("SELECT id FROM submissions WHERE assignment_id=? AND student_id=?",
                 (assignment_id, student_id), one=True)
     if not sub:
         flash("Não há envio deste aluno para avaliar.", "warning")
         return redirect(url_for("assignments.detail", assignment_id=assignment_id))
 
-    # Ler nota/feedback
     raw_grade = (request.form.get("grade") or "").strip()
     feedback = (request.form.get("feedback") or "").strip() or None
+    if feedback and len(feedback) > 1000:
+        flash("Feedback muito longo (máx 1000).", "danger")
+        return redirect(url_for("assignments.detail", assignment_id=assignment_id))
+
     grade_val = None
     if raw_grade != "":
         try:
@@ -247,7 +253,6 @@ def my_grades(course_id: int):
         WHERE a.course_id = ?
         ORDER BY a.created_at
     """, (g.user["id"], course_id))
-    # média simples das notas existentes
     grades = [r["grade"] for r in rows if r["grade"] is not None]
     avg = sum(grades)/len(grades) if grades else None
     return render_template("assignments/grades.html", course_id=course_id, rows=rows, avg=avg)

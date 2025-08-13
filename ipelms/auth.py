@@ -5,12 +5,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .db import query, execute
-from .security import csrf_protect, get_csrf_token
+from .security import csrf_protect, get_csrf_token, rate_limit
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 EMAIL_RE = re.compile(r"^[^@]+@[^@]+\.[^@]+$")
 
+# Carrega o usuário logado (se houver) em g.user a cada request
 @bp.before_app_request
 def load_logged_in_user():
     user_id = session.get("user_id")
@@ -19,10 +20,12 @@ def load_logged_in_user():
     else:
         g.user = query("SELECT id, name, email, role FROM users WHERE id = ?", (user_id,), one=True)
 
+# Deixa 'current_user' e 'csrf_token' disponíveis nos templates
 @bp.app_context_processor
 def inject_user_and_csrf():
     return {"current_user": g.get("user"), "csrf_token": get_csrf_token()}
 
+# --- Registro ---
 
 @bp.get("/register")
 def register_form():
@@ -30,6 +33,7 @@ def register_form():
 
 @bp.post("/register")
 @csrf_protect
+@rate_limit(max_requests=3, window_seconds=300)  # 3 tentativas a cada 5 min por IP
 def register_post():
     name = (request.form.get("name") or "").strip()
     email = (request.form.get("email") or "").strip().lower()
@@ -42,6 +46,8 @@ def register_post():
         flash("E-mail inválido.", "danger"); return redirect(url_for("auth.register_form"))
     if len(password) < 6:
         flash("Senha deve ter pelo menos 6 caracteres.", "danger"); return redirect(url_for("auth.register_form"))
+    if len(password) > 128:
+        flash("Senha muito longa.", "danger"); return redirect(url_for("auth.register_form"))
 
     # Checar se email já existe
     if query("SELECT id FROM users WHERE email = ?", (email,), one=True):
@@ -57,6 +63,7 @@ def register_post():
     flash("Conta criada com sucesso! Faça login.", "success")
     return redirect(url_for("auth.login"))
 
+# --- Login ---
 
 @bp.get("/login")
 def login():
@@ -64,6 +71,7 @@ def login():
 
 @bp.post("/login")
 @csrf_protect
+@rate_limit(max_requests=8, window_seconds=60)  # 8 tentativas por minuto por IP
 def login_post():
     email = (request.form.get("email") or "").strip().lower()
     password = request.form.get("password") or ""
@@ -78,6 +86,7 @@ def login_post():
     next_url = request.args.get("next") or url_for("index")
     return redirect(next_url)
 
+# --- Logout ---
 
 @bp.get("/logout")
 def logout():

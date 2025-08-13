@@ -15,7 +15,8 @@ from .security import login_required, csrf_protect
 bp = Blueprint("lessons", __name__, url_prefix="/lessons")
 
 ALLOWED_EXT = {"pdf", "txt", "md", "png", "jpg", "jpeg", "gif", "zip", "pptx", "docx", "csv"}
-
+MAX_TITLE = 200
+MAX_CONTENT = 20_000  # 20k chars
 
 def _get_course(course_id: int) -> Optional[dict]:
     return query("SELECT * FROM courses WHERE id = ?", (course_id,), one=True)
@@ -32,7 +33,6 @@ def _is_member(user_id: int, course_id: int) -> bool:
     return bool(row)
 
 def _require_instructor(course_id: int) -> Optional[dict]:
-    """Garante que o usuário atual é instrutor; retorna o curso se OK."""
     if not g.get("user"):
         flash("Você precisa estar autenticado.", "warning")
         return None
@@ -46,7 +46,6 @@ def _require_instructor(course_id: int) -> Optional[dict]:
     return course
 
 def _require_can_view(course_id: int) -> bool:
-    """Instrutores e alunos matriculados podem ver/baixar."""
     if not g.get("user"):
         return False
     return _is_instructor(g.user["id"], course_id) or _is_member(g.user["id"], course_id)
@@ -61,12 +60,10 @@ def _allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
 def _is_under_uploads(path: Path) -> bool:
-    """Evita apagar/servir fora de UPLOAD_FOLDER."""
     try:
         return Path(current_app.config["UPLOAD_FOLDER"]).resolve() in path.resolve().parents
     except Exception:
         return False
-
 
 @bp.get("/new/<int:course_id>")
 @login_required
@@ -87,24 +84,24 @@ def create(course_id: int):
     title = (request.form.get("title") or "").strip()
     content = (request.form.get("content") or "").strip()
 
-    if len(title) < 3:
-        flash("Título muito curto.", "danger")
+    if len(title) < 3 or len(title) > MAX_TITLE:
+        flash("Título inválido (3–200 chars).", "danger")
+        return redirect(url_for("lessons.new", course_id=course_id))
+    if len(content) > MAX_CONTENT:
+        flash("Conteúdo muito longo.", "danger")
         return redirect(url_for("lessons.new", course_id=course_id))
 
-    # 1) Cria a aula sem anexo
     lesson_id = execute(
         "INSERT INTO lessons(course_id, title, content, created_by) VALUES (?,?,?,?)",
         (course_id, title, content, g.user["id"])
     )
 
-    # 2) Se houver arquivo, salva e atualiza o caminho
     file = request.files.get("attachment")
     if file and file.filename:
         filename = secure_filename(file.filename)
         if not _allowed_file(filename):
             flash("Extensão de arquivo não permitida.", "danger")
             return redirect(url_for("lessons.new", course_id=course_id))
-        # caminho: uploads/courses/<course_id>/lessons/lesson_<id>__<filename>
         dest_dir = _course_lessons_dir(course_id)
         final_name = f"lesson_{lesson_id}__{filename}"
         dest_path = dest_dir / final_name
@@ -155,13 +152,15 @@ def edit_post(lesson_id: int):
 
     title = (request.form.get("title") or "").strip()
     content = (request.form.get("content") or "").strip()
-    if len(title) < 3:
-        flash("Título muito curto.", "danger")
+    if len(title) < 3 or len(title) > MAX_TITLE:
+        flash("Título inválido (3–200 chars).", "danger")
+        return redirect(url_for("lessons.edit", lesson_id=lesson_id))
+    if len(content) > MAX_CONTENT:
+        flash("Conteúdo muito longo.", "danger")
         return redirect(url_for("lessons.edit", lesson_id=lesson_id))
 
     execute("UPDATE lessons SET title=?, content=? WHERE id=?", (title, content, lesson_id))
 
-    # Substituir anexo se novo arquivo for enviado
     file = request.files.get("attachment")
     if file and file.filename:
         filename = secure_filename(file.filename)
@@ -174,7 +173,6 @@ def edit_post(lesson_id: int):
         file.save(dest_path)
         rel_path = dest_path.relative_to(Path(current_app.config["UPLOAD_FOLDER"]))
 
-        # remover arquivo antigo (se havia)
         old = lesson["attachment_path"]
         if old:
             old_abs = Path(current_app.config["UPLOAD_FOLDER"]) / old
@@ -202,7 +200,6 @@ def delete(lesson_id: int):
     if not course:
         return redirect(url_for("courses.detail", course_id=lesson["course_id"]))
 
-    # remover arquivo, se houver
     if lesson["attachment_path"]:
         abs_path = Path(current_app.config["UPLOAD_FOLDER"]) / lesson["attachment_path"]
         if abs_path.exists() and _is_under_uploads(abs_path):

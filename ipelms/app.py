@@ -4,7 +4,7 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from flask import Flask, render_template, jsonify, g
+from flask import Flask, render_template, jsonify, g, request
 
 from . import db as db_module
 from .auth import bp as auth_bp
@@ -14,7 +14,7 @@ from .notices import bp as notices_bp
 from .assignments import bp as assignments_bp
 from .security import login_required
 
-VERSION = "0.9.0"
+VERSION = "0.10.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -71,6 +71,8 @@ def create_app():
     secret_key = _load_secret_key(paths["SECRET_FILE"])
 
     app = Flask(__name__, instance_path=str(paths["INSTANCE_DIR"]))
+    is_prod = cfg.get("environment") == "production"
+
     app.config.update(
         SECRET_KEY=secret_key,
         MAX_CONTENT_LENGTH=10 * 1024 * 1024,  # 10 MB
@@ -78,6 +80,10 @@ def create_app():
         ENVIRONMENT=cfg.get("environment", "development"),
         SITE_NAME=cfg.get("site_name", "IpêLMS"),
         DATABASE_PATH=str((root / "data.db").resolve()),
+        # Cookies de sessão reforçados:
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=is_prod,  # em produção, exigir HTTPS
     )
 
     app.jinja_env.globals["SITE_NAME"] = app.config["SITE_NAME"]
@@ -88,14 +94,37 @@ def create_app():
         app.config["ENVIRONMENT"], app.config["UPLOAD_FOLDER"], paths["LOG_DIR"], VERSION
     )
 
+    # DB + CLI
     db_module.init_app(app)
 
+    # Blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(lessons_bp)
     app.register_blueprint(notices_bp)
     app.register_blueprint(assignments_bp)
 
+    # ---------- Security headers ----------
+    @app.after_request
+    def set_security_headers(resp):
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        resp.headers["X-Frame-Options"] = "DENY"
+        resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        # CSP enxuta (ajuste se precisar carregar recursos externos)
+        resp.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "img-src 'self' data:; "
+            "style-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "frame-ancestors 'none'"
+        )
+        if app.config["ENVIRONMENT"] == "production":
+            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+        return resp
+
+    # ----- Rotas principais -----
     @app.get("/")
     def index():
         return render_template("index.html")
@@ -129,6 +158,10 @@ def create_app():
             site_name=app.config.get("SITE_NAME"),
         )
 
+    @app.errorhandler(403)
+    def forbidden(err):
+        return render_template("errors/403.html", err=err), 403
+
     @app.errorhandler(404)
     def not_found(err):
         return render_template("errors/404.html", err=err), 404
@@ -140,6 +173,10 @@ def create_app():
     @app.errorhandler(413)
     def too_large(err):
         return render_template("errors/413.html", err=err), 413
+
+    @app.errorhandler(429)
+    def too_many(err):
+        return render_template("errors/429.html", err=err), 429
 
     @app.errorhandler(500)
     def server_error(err):

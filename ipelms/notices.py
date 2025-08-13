@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    flash, g, current_app, abort
+    flash, g, current_app
 )
 
 from .db import query, execute
@@ -11,6 +11,8 @@ from .security import login_required, csrf_protect
 
 bp = Blueprint("notices", __name__, url_prefix="/notices")
 
+MAX_TITLE = 200
+MAX_BODY = 5_000
 
 def _get_course(course_id: int) -> Optional[dict]:
     return query("SELECT * FROM courses WHERE id = ?", (course_id,), one=True)
@@ -29,7 +31,6 @@ def _is_member(user_id: int, course_id: int) -> bool:
 
 def _can_view(user_id: int, course_id: int) -> bool:
     return _is_instructor(user_id, course_id) or _is_member(user_id, course_id)
-
 
 @bp.get("/new/<int:course_id>")
 @login_required
@@ -58,11 +59,11 @@ def create(course_id: int):
     title = (request.form.get("title") or "").strip()
     body  = (request.form.get("body") or "").strip()
 
-    if len(title) < 3:
-        flash("Título muito curto.", "danger")
+    if len(title) < 3 or len(title) > MAX_TITLE:
+        flash("Título inválido (3–200 chars).", "danger")
         return redirect(url_for("notices.new", course_id=course_id))
-    if not body:
-        flash("O corpo do aviso é obrigatório.", "danger")
+    if not body or len(body) > MAX_BODY:
+        flash("O corpo do aviso é obrigatório e deve ter até 5000 caracteres.", "danger")
         return redirect(url_for("notices.new", course_id=course_id))
 
     notice_id = execute(
