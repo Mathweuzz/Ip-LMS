@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Novo Aviso — {{ course['title'] }} <small class="muted">({{ course['code'] }})</small></h2>
+  <form class="form" method="post" action="{{ url_for('notices.create', course_id=course['id']) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Título<br>
+      <input type="text" name="title" required minlength="3">
+    </label>
+    <label>Mensagem<br>
+      <textarea name="body" required placeholder="Escreva o aviso para os alunos"></textarea>
+    </label>
+    <div class="row gap">
+      <button type="submit">Publicar Aviso</button>
+      <a class="btn outline" href="{{ url_for('courses.detail', course_id=course['id']) }}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

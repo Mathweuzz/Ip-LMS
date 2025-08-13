@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="row gap">
+    <h2 style="margin-right:auto">{{ notice['title'] }}</h2>
+    <a class="btn outline" href="{{ url_for('courses.detail', course_id=notice['course_id']) }}">← Voltar ao curso {{ notice['course_code'] }}</a>
+  </div>
+
+  <div class="card">
+    <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ notice['body'] }}</pre>
+    <p class="muted">Publicado em: {{ notice['created_at'] }}</p>
+  </div>
+{% endblock %}

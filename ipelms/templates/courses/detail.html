@@ -58,6 +58,27 @@
   </div>
 
   <div class="card" style="margin-top:1rem;">
+    <div class="row gap">
+      <h3 style="margin-right:auto">Avisos</h3>
+      {% if is_instr %}
+        <a class="btn" href="{{ url_for('notices.new', course_id=course['id']) }}">+ Novo Aviso</a>
+      {% endif %}
+    </div>
+    {% if notices %}
+      <ul>
+        {% for n in notices %}
+          <li>
+            <a href="{{ url_for('notices.detail', notice_id=n['id']) }}">{{ n['title'] }}</a>
+            <span class="muted">— {{ n['created_at'] }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Nenhum aviso publicado ainda.</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
     <h3>Instrutores</h3>
     <ul>
       {% for i in instructors %}

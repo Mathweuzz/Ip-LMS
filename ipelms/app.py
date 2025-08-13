@@ -10,9 +10,10 @@ from . import db as db_module
 from .auth import bp as auth_bp
 from .courses import bp as courses_bp
 from .lessons import bp as lessons_bp
+from .notices import bp as notices_bp
 from .security import login_required
 
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -28,7 +29,7 @@ def _load_json_config(config_path: Path) -> dict:
 
 def _load_secret_key(secret_path: Path) -> str:
     try:
-        key = secret_key = secret_path.read_text(encoding="utf-8").strip()
+        key = secret_path.read_text(encoding="utf-8").strip()
         return key if len(key) >= 32 else "dev"
     except Exception:
         return "dev"
@@ -91,6 +92,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(lessons_bp)
+    app.register_blueprint(notices_bp)
 
     @app.get("/")
     def index():

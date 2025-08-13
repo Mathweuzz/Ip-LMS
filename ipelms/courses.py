@@ -97,6 +97,13 @@ def detail(course_id: int):
         ORDER BY created_at DESC
     """, (course_id,))
 
+    notices = query("""
+        SELECT id, title, created_at
+        FROM notices
+        WHERE course_id = ?
+        ORDER BY created_at DESC
+    """, (course_id,))
+
     is_instr = False
     is_mem = False
     if g.get("user"):
@@ -109,6 +116,7 @@ def detail(course_id: int):
         instructors=instructors,
         members_count=members_count,
         lessons=lessons,
+        notices=notices,
         is_instr=is_instr,
         is_mem=is_mem
     )
