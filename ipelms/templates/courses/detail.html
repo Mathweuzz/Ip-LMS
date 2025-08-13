@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="row gap">
+    <h2 style="margin-right:auto">{{ course['title'] }} <small class="muted">({{ course['code'] }})</small></h2>
+    <a class="btn outline" href="{{ url_for('courses.list_courses') }}">← Voltar</a>
+  </div>
+
+  <div class="card">
+    {% if course['description'] %}
+      <p>{{ course['description'] }}</p>
+    {% else %}
+      <p class="muted">Sem descrição.</p>
+    {% endif %}
+    <p class="muted">Criado em: {{ course['created_at'] }}</p>
+
+    {% if current_user %}
+      <div class="row gap" style="margin-top:.75rem;">
+        {% if is_mem %}
+          <form method="post" action="{{ url_for('courses.leave', course_id=course['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit">Sair do curso</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('courses.join', course_id=course['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit">Entrar no curso</button>
+          </form>
+        {% endif %}
+        {% if is_instr %}
+          <span class="muted">Você é instrutor deste curso.</span>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="muted">Entre para se matricular.</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
+    <div class="row gap">
+      <h3 style="margin-right:auto">Aulas</h3>
+      {% if is_instr %}
+        <a class="btn" href="{{ url_for('lessons.new', course_id=course['id']) }}">+ Nova Aula</a>
+      {% endif %}
+    </div>
+    {% if lessons %}
+      <ul>
+        {% for l in lessons %}
+          <li>
+            <a href="{{ url_for('lessons.detail', lesson_id=l['id']) }}">{{ l['title'] }}</a>
+            <span class="muted">— {{ l['created_at'] }}</span>
+            {% if l['attachment_path'] %}<span class="muted">(com anexo)</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Nenhuma aula cadastrada neste curso.</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
+    <h3>Instrutores</h3>
+    <ul>
+      {% for i in instructors %}
+        <li>{{ i['name'] }} <span class="muted">({{ i['email'] }})</span></li>
+      {% endfor %}
+    </ul>
+    <p class="muted">Alunos matriculados: {{ members_count }}</p>
+  </div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Editar Aula — {{ course['title'] }} <small class="muted">({{ course['code'] }})</small></h2>
+  <form class="form" method="post" action="{{ url_for('lessons.edit_post', lesson_id=lesson['id']) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Título<br>
+      <input type="text" name="title" required minlength="3" value="{{ lesson['title'] }}">
+    </label>
+    <label>Conteúdo<br>
+      <textarea name="content">{{ lesson['content'] or '' }}</textarea>
+    </label>
+
+    {% if lesson['attachment_path'] %}
+      <p class="muted">Anexo atual:
+        <a class="btn outline" href="{{ url_for('lessons.download', lesson_id=lesson['id']) }}">Baixar</a>
+      </p>
+    {% else %}
+      <p class="muted">Sem anexo atual.</p>
+    {% endif %}
+
+    <label>Substituir anexo (opcional, até 10MB)<br>
+      <input type="file" name="attachment" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.zip,.pptx,.docx,.csv">
+    </label>
+
+    <div class="row gap">
+      <button type="submit">Salvar</button>
+      <a class="btn outline" href="{{ url_for('lessons.detail', lesson_id=lesson['id']) }}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

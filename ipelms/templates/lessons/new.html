@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Nova Aula — {{ course['title'] }} <small class="muted">({{ course['code'] }})</small></h2>
+  <form class="form" method="post" action="{{ url_for('lessons.create', course_id=course['id']) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Título<br>
+      <input type="text" name="title" required minlength="3">
+    </label>
+    <label>Conteúdo (markdown ou texto simples)<br>
+      <textarea name="content" placeholder="Escreva o conteúdo da aula (opcional)"></textarea>
+    </label>
+    <label>Anexo (opcional, até 10MB; tipos: pdf, txt, md, png, jpg, jpeg, gif, zip, pptx, docx, csv)<br>
+      <input type="file" name="attachment" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.zip,.pptx,.docx,.csv">
+    </label>
+    <div class="row gap">
+      <button type="submit">Criar Aula</button>
+      <a class="btn outline" href="{{ url_for('courses.detail', course_id=course['id']) }}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

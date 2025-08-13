@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="row gap">
+    <h2 style="margin-right:auto">{{ lesson['title'] }}</h2>
+    {% if is_instr %}
+      <a class="btn outline" href="{{ url_for('lessons.edit', lesson_id=lesson['id']) }}">Editar</a>
+      <form method="post" action="{{ url_for('lessons.delete', lesson_id=lesson['id']) }}" onsubmit="return confirm('Excluir esta aula?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Excluir</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {% if lesson['content'] %}
+      <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ lesson['content'] }}</pre>
+    {% else %}
+      <p class="muted">Sem conteúdo textual.</p>
+    {% endif %}
+
+    {% if lesson['attachment_path'] %}
+      <p style="margin-top:1rem"><a class="btn" href="{{ url_for('lessons.download', lesson_id=lesson['id']) }}">Baixar anexo</a></p>
+    {% endif %}
+    <p class="muted">Criada em: {{ lesson['created_at'] }}</p>
+  </div>
+{% endblock %}

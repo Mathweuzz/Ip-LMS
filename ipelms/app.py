@@ -9,9 +9,10 @@ from flask import Flask, render_template, jsonify, g
 from . import db as db_module
 from .auth import bp as auth_bp
 from .courses import bp as courses_bp
+from .lessons import bp as lessons_bp
 from .security import login_required
 
-VERSION = "0.6.1"
+VERSION = "0.7.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -27,7 +28,7 @@ def _load_json_config(config_path: Path) -> dict:
 
 def _load_secret_key(secret_path: Path) -> str:
     try:
-        key = secret_path.read_text(encoding="utf-8").strip()
+        key = secret_key = secret_path.read_text(encoding="utf-8").strip()
         return key if len(key) >= 32 else "dev"
     except Exception:
         return "dev"
@@ -89,6 +90,7 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(courses_bp)
+    app.register_blueprint(lessons_bp)
 
     @app.get("/")
     def index():
@@ -103,14 +105,12 @@ def create_app():
           WHERE m.user_id = ?
           ORDER BY c.created_at DESC
         """, (g.user["id"],))
-
         my_instr_courses = db_module.query("""
           SELECT c.* FROM courses c
           JOIN course_instructors i ON i.course_id = c.id
           WHERE i.user_id = ?
           ORDER BY c.created_at DESC
         """, (g.user["id"],))
-
         return render_template("dashboard.html",
                                my_courses=my_courses,
                                my_instr_courses=my_instr_courses)
