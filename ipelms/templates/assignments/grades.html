@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Boletim do Curso</h2>
+  <div class="card">
+    {% if rows %}
+      <table class="table">
+        <thead><tr><th>Tarefa</th><th>Enviado em</th><th>Nota</th><th>Avaliado em</th><th>Feedback</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r['title'] }}</td>
+              <td>{{ r['submitted_at'] or '—' }}</td>
+              <td>{{ r['grade'] if r['grade'] is not none else '—' }}</td>
+              <td>{{ r['graded_at'] or '—' }}</td>
+              <td>{{ r['feedback'] or '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if avg is not none %}
+        <p><strong>Média:</strong> {{ avg|round(2) }}</p>
+      {% endif %}
+    {% else %}
+      <p class="muted">Não há tarefas neste curso ainda.</p>
+    {% endif %}
+  </div>
+  <p><a class="btn outline" href="{{ url_for('courses.detail', course_id=course_id) }}">← Voltar ao curso</a></p>
+{% endblock %}

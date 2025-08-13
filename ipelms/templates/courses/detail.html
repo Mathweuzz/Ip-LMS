@@ -79,6 +79,32 @@
   </div>
 
   <div class="card" style="margin-top:1rem;">
+    <div class="row gap">
+      <h3 style="margin-right:auto">Tarefas</h3>
+      <div class="row gap">
+        {% if is_instr %}
+          <a class="btn" href="{{ url_for('assignments.new', course_id=course['id']) }}">+ Nova Tarefa</a>
+        {% endif %}
+        {% if current_user %}
+          <a class="btn outline" href="{{ url_for('assignments.my_grades', course_id=course['id']) }}">Ver meu boletim</a>
+        {% endif %}
+      </div>
+    </div>
+    {% if assignments %}
+      <ul>
+        {% for a in assignments %}
+          <li>
+            <a href="{{ url_for('assignments.detail', assignment_id=a['id']) }}">{{ a['title'] }}</a>
+            <span class="muted">— {{ a['created_at'] }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Nenhuma tarefa criada ainda.</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
     <h3>Instrutores</h3>
     <ul>
       {% for i in instructors %}

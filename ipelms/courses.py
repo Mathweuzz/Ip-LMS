@@ -17,17 +17,11 @@ def _get_course(course_id: int) -> Optional[dict]:
     return query("SELECT * FROM courses WHERE id = ?", (course_id,), one=True)
 
 def _is_instructor(user_id: int, course_id: int) -> bool:
-    row = query(
-        "SELECT 1 FROM course_instructors WHERE course_id=? AND user_id=?",
-        (course_id, user_id), one=True
-    )
+    row = query("SELECT 1 FROM course_instructors WHERE course_id=? AND user_id=?", (course_id, user_id), one=True)
     return bool(row)
 
 def _is_member(user_id: int, course_id: int) -> bool:
-    row = query(
-        "SELECT 1 FROM course_members WHERE course_id=? AND user_id=?",
-        (course_id, user_id), one=True
-    )
+    row = query("SELECT 1 FROM course_members WHERE course_id=? AND user_id=?", (course_id, user_id), one=True)
     return bool(row)
 
 @bp.get("/")
@@ -65,10 +59,7 @@ def create_course():
         "INSERT INTO courses(title, description, code, created_by) VALUES (?, ?, ?, ?)",
         (title, description, code, g.user["id"])
     )
-    execute(
-        "INSERT OR IGNORE INTO course_instructors(course_id, user_id) VALUES (?, ?)",
-        (course_id, g.user["id"])
-    )
+    execute("INSERT OR IGNORE INTO course_instructors(course_id, user_id) VALUES (?, ?)", (course_id, g.user["id"]))
     current_app.logger.info("Curso criado: id=%s code=%s by user_id=%s", course_id, code, g.user["id"])
     flash("Curso criado com sucesso!", "success")
     return redirect(url_for("courses.detail", course_id=course_id))
@@ -104,6 +95,13 @@ def detail(course_id: int):
         ORDER BY created_at DESC
     """, (course_id,))
 
+    assignments = query("""
+        SELECT id, title, created_at
+        FROM assignments
+        WHERE course_id = ?
+        ORDER BY created_at DESC
+    """, (course_id,))
+
     is_instr = False
     is_mem = False
     if g.get("user"):
@@ -117,6 +115,7 @@ def detail(course_id: int):
         members_count=members_count,
         lessons=lessons,
         notices=notices,
+        assignments=assignments,
         is_instr=is_instr,
         is_mem=is_mem
     )

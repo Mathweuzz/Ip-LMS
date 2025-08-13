@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="row gap">
+    <h2 style="margin-right:auto">{{ assignment['title'] }}</h2>
+    <a class="btn outline" href="{{ url_for('courses.detail', course_id=assignment['course_id']) }}">← Voltar ao curso {{ assignment['course_code'] }}</a>
+  </div>
+
+  <div class="card">
+    {% if assignment['description'] %}
+      <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ assignment['description'] }}</pre>
+    {% else %}
+      <p class="muted">Sem enunciado textual.</p>
+    {% endif %}
+    <p class="muted">Criada em: {{ assignment['created_at'] }}</p>
+  </div>
+
+  {% if not is_instructor %}
+    <div class="card" style="margin-top:1rem;">
+      <h3>Meu envio</h3>
+      {% if my_submission %}
+        <p><strong>Último envio:</strong> {{ my_submission['submitted_at'] }}</p>
+        {% if my_submission['attachment_path'] %}
+          <p><a class="btn outline" href="{{ url_for('assignments.download', submission_id=my_submission['id']) }}">Baixar meu anexo</a></p>
+        {% endif %}
+        {% if my_submission['grade'] is not none %}
+          <p><strong>Nota:</strong> {{ my_submission['grade'] }}{% if my_submission['graded_at'] %} <span class="muted">(avaliado em {{ my_submission['graded_at'] }})</span>{% endif %}</p>
+          {% if my_submission['feedback'] %}<p><strong>Feedback:</strong> {{ my_submission['feedback'] }}</p>{% endif %}
+        {% else %}
+          <p class="muted">Ainda sem nota.</p>
+        {% endif %}
+      {% else %}
+        <p class="muted">Nenhum envio ainda.</p>
+      {% endif %}
+
+      <h4>Enviar / Reenviar</h4>
+      <form class="form" method="post" action="{{ url_for('assignments.submit', assignment_id=assignment['id']) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>Texto (opcional)<br>
+          <textarea name="text" placeholder="Cole aqui sua resposta, se desejar"></textarea>
+        </label>
+        <label>Anexo (opcional; até 10MB; tipos: pdf, txt, md, png, jpg, jpeg, gif, zip, pptx, docx, csv)<br>
+          <input type="file" name="attachment" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.zip,.pptx,.docx,.csv">
+        </label>
+        <button type="submit">Enviar</button>
+      </form>
+    </div>
+  {% else %}
+    <div class="card" style="margin-top:1rem;">
+      <h3>Envios dos alunos</h3>
+      {% if all_submissions %}
+        <table class="table">
+          <thead>
+            <tr><th>Aluno</th><th>Enviado em</th><th>Anexo</th><th>Nota</th><th>Feedback</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            {% for s in all_submissions %}
+              <tr>
+                <td>{{ s['name'] }} <span class="muted">({{ s['email'] }})</span></td>
+                <td>{{ s['submitted_at'] }}</td>
+                <td>
+                  {% if s['attachment_path'] %}
+                    <a class="btn outline" href="{{ url_for('assignments.download', submission_id=s['id']) }}">Baixar</a>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ s['grade'] if s['grade'] is not none else '—' }}</td>
+                <td>{{ s['feedback'] or '—' }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('assignments.grade', assignment_id=assignment['id'], student_id=s['student_id']) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="number" step="0.1" name="grade" placeholder="nota" value="{{ s['grade'] if s['grade'] is not none else '' }}" style="width:6rem">
+                    <input type="text" name="feedback" placeholder="feedback curto" value="{{ s['feedback'] or '' }}" style="width:16rem">
+                    <button type="submit">Salvar</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">Ainda sem envios.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

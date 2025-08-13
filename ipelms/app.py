@@ -11,9 +11,10 @@ from .auth import bp as auth_bp
 from .courses import bp as courses_bp
 from .lessons import bp as lessons_bp
 from .notices import bp as notices_bp
+from .assignments import bp as assignments_bp
 from .security import login_required
 
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -93,6 +94,7 @@ def create_app():
     app.register_blueprint(courses_bp)
     app.register_blueprint(lessons_bp)
     app.register_blueprint(notices_bp)
+    app.register_blueprint(assignments_bp)
 
     @app.get("/")
     def index():
