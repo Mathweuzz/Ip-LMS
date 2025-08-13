@@ -7,8 +7,9 @@ from pathlib import Path
 from flask import Flask, render_template, jsonify
 
 from . import db as db_module
+from .auth import bp as auth_bp
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêMLS", "environment": "development"}
@@ -62,12 +63,11 @@ def _setup_logging(app: Flask, log_file: Path) -> None:
     handler.setFormatter(fmt)
     app.logger.addHandler(handler)
 
+
 def create_app():
-    # paths relativos a raiz do projeto
     root = Path(__file__).resolve().parent.parent
     paths = _setup_dirs(root)
 
-    # carregar confis
     cfg = _load_json_config(paths["CONFIG_JSON"])
     secret_key = _load_secret_key(paths["SECRET_FILE"])
 
@@ -83,23 +83,26 @@ def create_app():
 
     app.jinja_env.globals["SITE_NAME"] = app.config["SITE_NAME"]
 
-    # Logging
     _setup_logging(app, paths["APP_LOG"])
     app.logger.info(
         "IpêLMS iniciado | env=%s | uploads=%s | logs=%s | version=%s",
         app.config["ENVIRONMENT"], app.config["UPLOAD_FOLDER"], paths["LOG_DIR"], VERSION
     )
 
+    # DB + CLI
     db_module.init_app(app)
 
+    # ===== REGISTRO DOS BLUEPRINTS =====
+    app.register_blueprint(auth_bp)
+
+    # Rotas mínimas
     @app.get("/")
     def index():
         app.logger.info("GET / (index) acessado")
         return render_template("index.html")
-    
+
     @app.get("/healthz")
     def healthz():
-        # Retorna ambiente e nome do site para validação
         return jsonify(
             status="ok",
             app="ipelms",
@@ -107,7 +110,7 @@ def create_app():
             environment=app.config.get("ENVIRONMENT"),
             site_name=app.config.get("SITE_NAME"),
         )
-    
+
     return app
 
 app = create_app()

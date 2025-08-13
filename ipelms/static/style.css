@@ -8,3 +8,17 @@ body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu
 .container { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
 h1 { margin:.25rem 0 1rem; }
 .footer { color: var(--muted); border-top:1px solid #eee; padding:1rem; text-align:center; margin-top:2rem; }
+
+/* ... (conteúdo existente acima) ... */
+.form { display:grid; gap:.75rem; max-width: 420px; }
+.form input { width:100%; padding:.5rem .6rem; border:1px solid #ddd; border-radius:.5rem; }
+.form button { padding:.5rem .9rem; border:0; background:var(--brand); color:#fff; border-radius:.5rem; cursor:pointer; }
+.form button:hover { filter:brightness(0.95); }
+
+.flashes { display:grid; gap:.5rem; margin: .5rem 0 1rem; }
+.flash { padding:.5rem .75rem; border-radius:.5rem; border:1px solid #eee; background:#fff; }
+.flash-success { border-color:#c6f3d4; background:#e8fff0; }
+.flash-info    { border-color:#d2ebff; background:#f0f8ff; }
+.flash-warning { border-color:#ffe9b3; background:#fff7df; }
+.flash-danger  { border-color:#ffd2d2; background:#fff0f0; }
+.muted { color: var(--muted); }

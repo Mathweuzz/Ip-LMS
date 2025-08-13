@@ -8,15 +8,32 @@
 </head>
 <body>
   <nav class="nav">
-    <div class="brand">{{ SITE_NAME }}</div>
+    <div class="brand"><a href="{{ url_for('index') }}">{{ SITE_NAME }}</a></div>
     <div class="spacer"></div>
-    <a href="{{ url_for('index') }}">Início</a>
+    {% if current_user %}
+      <span class="muted">Olá, {{ current_user['name'] }}!</span>
+      <a href="{{ url_for('auth.logout') }}">Sair</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">Entrar</a>
+      <a href="{{ url_for('auth.register_form') }}">Cadastrar</a>
+    {% endif %}
   </nav>
+
   <main class="container">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="flashes">
+          {% for cat, msg in msgs %}
+            <div class="flash flash-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
+
   <footer class="footer">
-    <small>IpêLMS — Etapa 1</small>
+    <small>IpêLMS — Etapa 4 (Auth + CSRF)</small>
   </footer>
 </body>
 </html>
