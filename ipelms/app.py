@@ -4,13 +4,14 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, g
 
 from . import db as db_module
 from .auth import bp as auth_bp
+from .courses import bp as courses_bp
 from .security import login_required
 
-VERSION = "0.5.0"
+VERSION = "0.6.1"
 
 def _load_json_config(config_path: Path) -> dict:
     default = {"site_name": "IpêLMS", "environment": "development"}
@@ -87,6 +88,7 @@ def create_app():
     db_module.init_app(app)
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(courses_bp)
 
     @app.get("/")
     def index():
@@ -95,7 +97,23 @@ def create_app():
     @app.get("/dashboard")
     @login_required
     def dashboard():
-        return render_template("dashboard.html")
+        my_courses = db_module.query("""
+          SELECT c.* FROM courses c
+          JOIN course_members m ON m.course_id = c.id
+          WHERE m.user_id = ?
+          ORDER BY c.created_at DESC
+        """, (g.user["id"],))
+
+        my_instr_courses = db_module.query("""
+          SELECT c.* FROM courses c
+          JOIN course_instructors i ON i.course_id = c.id
+          WHERE i.user_id = ?
+          ORDER BY c.created_at DESC
+        """, (g.user["id"],))
+
+        return render_template("dashboard.html",
+                               my_courses=my_courses,
+                               my_instr_courses=my_instr_courses)
 
     @app.get("/healthz")
     def healthz():
@@ -115,7 +133,7 @@ def create_app():
     def bad_request(err):
         return render_template("errors/400.html", err=err), 400
 
-    @app.errorhandler(413)  
+    @app.errorhandler(413)
     def too_large(err):
         return render_template("errors/413.html", err=err), 413
 
