@@ -4,7 +4,7 @@ import secrets
 import time
 from functools import wraps
 from typing import Callable, Any
-from flask import session, request, abort, redirect, url_for, flash, current_app
+from flask import session, request, abort, redirect, url_for, flash, current_app, g
 
 # --- CSRF ---
 
@@ -30,11 +30,19 @@ def csrf_protect(view: Callable[..., Any]) -> Callable[..., Any]:
 # --- Auth auxiliar ---
 
 def login_required(view: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator simples para rotas que exigem usuário autenticado."""
+    """Decorator para rotas que exigem usuário autenticado.
+    Garante sessão válida e g.user carregado; caso contrário, redireciona ao login.
+    """
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user_id"):
+        uid = session.get("user_id")
+        if not uid:
             flash("Você precisa estar autenticado.", "warning")
+            return redirect(url_for("auth.login", next=request.path))
+        # Pode haver sessão órfã (user apagado) ou g.user não carregado
+        if not getattr(g, "user", None):
+            session.clear()
+            flash("Sua sessão expirou. Faça login novamente.", "warning")
             return redirect(url_for("auth.login", next=request.path))
         return view(*args, **kwargs)
     return wrapped
